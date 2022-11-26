@@ -10,14 +10,6 @@
 #include<sys/sem.h>
 #define true 1
 #define false 0
-struct Tickets{
-    int seatNumber,isAvailable;
-    float price;
-};
-struct Flight{
-    int id, isFull, ticketsCount;
-    char* destination;
-};
 int createSemaphore(key_t semaphoreKey,int initialValue){
     int semaphoreId;
     do{
@@ -42,4 +34,15 @@ int* createSharedMemory(int sharedMemoryId){
         if(*sharedMemory == -1) printf("Error accessing\nTrying again...\n");
     }while(*sharedMemory == -1);
     return sharedMemory;
+}
+void down(int semaphoreId){
+   struct sembuf op_p[]={0,-1,0};
+   semop(semaphoreId,op_p,1);
+}
+void up(int semaphoreId){
+   struct sembuf op_v[]={0,+1,0};
+   semop(semaphoreId,op_v,1);
+}
+void clearSharedMemory(int sharedMemoryId){
+    while(shmctl(sharedMemoryId,0,NULL) != 0);
 }
