@@ -1,9 +1,6 @@
-#include <sys/types.h>
-#include <sys/ipc.h>
-#include <sys/shm.h>
-#include <stdio.h>
+#include "Project.h"
 int main(){
-    key_t accessKey = 1234;
+    key_t accessKey = ftok("Server",1234);
     int sharedMemoryId = shmget(accessKey,27,IPC_CREAT|0666);
     if(sharedMemoryId < 0) printf("Error getting shared memory");
     int* sharedMemory = shmat(sharedMemoryId,NULL,0), *s;
