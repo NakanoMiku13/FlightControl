@@ -1,4 +1,12 @@
 #include "Project.h"
+struct Tickets{
+    int seatNumber,isAvailable;
+    float price;
+};
+struct Flight{
+    int id, isFull, ticketsCount;
+    char* destination;
+};
 int main(){
     key_t accessKey = ftok("Server",1234);
     int sharedMemoryId = createSharedMemoryId(accessKey), *sharedMemory = createSharedMemory(sharedMemoryId);
@@ -7,6 +15,6 @@ int main(){
         sleep(1);
     }
     printf("Se hizo lectura\n");
-    while(shmctl(sharedMemoryId,0,NULL) != 0);
+    clearSharedMemory(sharedMemoryId);
     return 0;
 }
