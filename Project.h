@@ -8,6 +8,7 @@
 #include<signal.h>
 #include<semaphore.h>
 #include<sys/msg.h>
+#include<string.h>
 #define true 1
 #define false 0
 #define TRUE 1
@@ -15,81 +16,91 @@
 #define and &&
 #define or ||
 #define not !
-// int createSemaphore(key_t accessKey,int initialValue){
-//     int semaphoreId;
-//     do{
-//         semaphoreId = semget(accessKey,1,IPC_CREAT | 0664);
-//         if(semaphoreId == -1) printf("Error creating semaphore...\n");
-//     }while(semaphoreId == -1);
-//     semctl(semaphoreId, 0, SETVAL,initialValue);
-//     return semaphoreId;
-// }
-// void downSemaphore(int semaphoreId){
-//    struct sembuf op_p[]={0,-1,0};
-//    semop(semaphoreId,op_p,1);
-// }
-// void upSemaphore(int semaphoreId){
-//    struct sembuf op_v[]={0,+1,0};
-//    semop(semaphoreId,op_v,1);
-// }
-typedef struct Client Client;
-typedef struct ClientList ClientList;
-struct Client{
-    pid_t id;
-    Client *next, *prev;
+#define this TicketList* self
+#define READNWRITE 00004|00002
+typedef struct Flight Flight;
+typedef struct Ticket Ticket;
+struct Ticket{
+    int flightId,seatNumber,isAvailable;
+    float price;
 };
-#define this ClientList* self
-struct ClientList{
-    Client *head,*tail;
-    size_t size;
+
+struct Flight{
+    int id, isFull, ticketsCount;
+    char destination[250];
+    Ticket tickets[125];
 };
-void ctr(this){
-    self->head = self->tail = malloc(sizeof(Client));
-    self->size = 0;
-}
-void push(this,int processId){
-    Client *new = (Client*) malloc(sizeof(Client));
-    new->id = processId;
-    if(self->head == NULL or self->size == 0){
-        self->head = self->tail = new;
-        self->tail->prev = self->head;
-        self->head->next = self->tail;
-    }else{
-        self->tail->next = new;
-        new->prev = self->tail;
-        self->tail = new;
+static struct Flight* createSharedMemoryFlight(void){
+    void *sharedMemory = (void *)0;
+    int sharedMemoryId = shmget((key_t) 12345,sizeof(struct Flight),IPC_CREAT | 0644);
+    if (sharedMemoryId == -1) {
+        fprintf(stderr, "Error Getting information...\n");
+        fflush(stdout);
+        exit(EXIT_FAILURE);
     }
-    self->size++;
-}
-void popLast(this){
-    if(self->size-1 > 0){
-        self->size--;
-        Client *tmp = self->tail;
-        self->tail = self->tail->prev;
-        free(tmp);
+    sharedMemory = (struct Flight*) shmat(sharedMemoryId,(struct Flight*)0,0); //g
+    if(sharedMemory == (void*)-1){ //error checking of pointer
+        fprintf(stderr, "Error unknown...\n");
+        fflush(stdout);
+        exit(EXIT_FAILURE);
     }
+    return sharedMemory; //returns object pointer
 }
-void popFront(this){
-    if(self->size > 0){
-        self->size--;
-        self->head = self->head->next;
+static struct Flight* getSharedMemoryFlight(void){
+    void *sharedMemory = (void *)0;
+    int sharedMemoryId = shmget((key_t) 12345,sizeof(struct Flight),IPC_CREAT | 0644);
+    if (sharedMemoryId == -1) {
+        fprintf(stderr, "Error Getting information...\n");
+        fflush(stdout);
+        exit(EXIT_FAILURE);
     }
-}
-int getValue(Client client){
-    return client.id;
-}
-void PrintList(ClientList list){
-    while(list.size > 0){
-        printf("crash? %ld \n",list.size);
-        int id = getValue(*list.head);
-        printf("id: %d\n",id);
-        popFront(&list);
+    sharedMemory = (struct Flight*) shmat(sharedMemoryId,(struct Flight*)0,0); //g
+    if(sharedMemory == (void*)-1){ //error checking of pointer
+        fprintf(stderr, "Error unknown...\n");
+        fflush(stdout);
+        exit(EXIT_FAILURE);
     }
+    return sharedMemory; //returns object pointer
+}
+Flight createFlight(const int id,char destination[],const int ticketsCount,const float price){
+    Flight flight;
+    flight.id = id;
+    //flight.destination = destination;
+    flight.ticketsCount = ticketsCount;
+    flight.isFull = FALSE;
+    int i = 0;
+    for(i = 0; i < flight.ticketsCount; i++){
+        Ticket ticket;
+        ticket.flightId = id;
+        ticket.seatNumber = i+1;
+        ticket.isAvailable = TRUE;
+        ticket.price = price;
+        flight.tickets[i] = ticket;
+    }
+    return flight;
+}
+Flight defaultFlight(){
+    Flight flight;
+    flight.id = 1;
+    flight.destination;
+    strcpy(flight.destination,"Cancun");
+    flight.ticketsCount = 10;
+    flight.isFull = FALSE;
+    int i = 0;
+    for(i = 0; i < flight.ticketsCount; i++){
+        Ticket ticket;
+        ticket.flightId = 1;
+        ticket.seatNumber = i+1;
+        ticket.isAvailable = TRUE;
+        ticket.price = 150;
+        flight.tickets[i] = ticket;
+    }
+    return flight;
 }
 int createSharedMemoryId(int accessKey){
     int sharedMemoryId;
     do{
-        sharedMemoryId = shmget(accessKey,27,IPC_CREAT|0666);
+        sharedMemoryId = shmget(accessKey,sizeof(int),IPC_CREAT|0666);
         if(sharedMemoryId < 0) printf("Error creating the shared memory\nTrying again...\n");
     }while(sharedMemoryId < 0);
     return sharedMemoryId;
@@ -105,6 +116,34 @@ int* createSharedMemory(int sharedMemoryId){
 void clearSharedMemory(int sharedMemoryId){
     while(shmctl(sharedMemoryId,0,NULL) != 0);
 }
+
+//Client info send
+int createSharedMemoryIdFlightInfo(Flight flight){
+    int sharedMemoryId;
+    do{
+        sharedMemoryId = shmget((key_t)ftok("Flight",90878),sizeof(Flight),READNWRITE);
+        if(sharedMemoryId < 0) printf("Error sending the Flight Information\nTrying again...\n");
+    }while(sharedMemoryId < 0);
+    return sharedMemoryId;
+}
+
+Flight* setSharedMemory(const int flightSharedMemoryId){
+    Flight* flight = (Flight*)malloc(sizeof(Flight));
+    do{
+        flight = (Flight*)shmat(flightSharedMemoryId,0,READNWRITE);
+        if(flight == NULL or flight == (Flight*)-1){ printf("Error unknown...\nTrying again...\n"); sleep(5);}
+    }while(flight == NULL or flight == (Flight*)-1);
+    char* tmp = flight->destination;
+    printf("dd\n");
+    printf("dd: %s\n",tmp);
+    printf("goli %ld\n",sizeof(flight->destination));
+    return flight;
+}
+
+void TicketConnect(const int pid){
+    int *sharedMemory = createSharedMemory(createSharedMemoryId((key_t)ftok("Server",1234)));
+    *sharedMemory = pid;
+}
 void clientConnect(const int pid){
     int *sharedMemory = createSharedMemory(createSharedMemoryId((key_t)ftok("Server",1234)));
     *sharedMemory = pid;
@@ -112,4 +151,8 @@ void clientConnect(const int pid){
 void releaseConnection(){
     int *sharedMemory = createSharedMemory(createSharedMemoryId((key_t)ftok("Server",1234)));
     *sharedMemory = 0;
+}
+Flight* clientFlightInfo(Flight* flight){
+    Flight* tmp = setSharedMemory(createSharedMemoryIdFlightInfo(*flight));
+    return tmp;
 }

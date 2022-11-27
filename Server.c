@@ -1,17 +1,10 @@
 #include "Project.h"
-struct Tickets{
-    int seatNumber,isAvailable;
-    float price;
-};
-struct Flight{
-    int id, isFull, ticketsCount;
-    char* destination;
-};
 int main(){
-    key_t accessKey = ftok("Server",1234),accessKey2 = ftok("Server2",1234);
-    sem_t semaphore;
+    Flight vuelo1 = defaultFlight();
+    Flight* test = createSharedMemoryFlight();
+    *test = vuelo1;
+    key_t accessKey = ftok("Server",1234);
     int sharedMemoryId = createSharedMemoryId(accessKey), *connection = createSharedMemory(sharedMemoryId);
-    int *users = (int*)malloc(sizeof(int)*10);
     *connection = 0;
     int count = 0, lastUser = -1;
     do{
@@ -20,11 +13,15 @@ int main(){
             int pid = fork();
             if(pid==-1) printf("Error unknown...\n");
             else if(pid == 0){
+                printf("Client successfully connected: id: %d\n",*connection);
+                printf("Flight id: %d\n",test->id);
+                printf("Destination: %s\n",test->destination);
+                printf("tt: %ld\n",sizeof(test->destination));
                 *connection = 0;
                 exit(1);
             }else{
                 if(lastUser != *connection){
-                    
+                    printf("New user connection detected...\n");
                 }
             }
         }
