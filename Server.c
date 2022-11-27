@@ -10,31 +10,25 @@ struct Flight{
 int main(){
     key_t accessKey = ftok("Server",1234),accessKey2 = ftok("Server2",1234);
     sem_t semaphore;
-    int sharedMemoryId = createSharedMemoryId(accessKey), *clients = createSharedMemory(sharedMemoryId);
-    *clients = 0;
-    int clientsId = shmget(accessKey2,10*sizeof(ClientList),IPC_CREAT|0666);
-    ClientList *list;
-    list = (ClientList*)shmat(clientsId,NULL,0);
-    ctr(list);
+    int sharedMemoryId = createSharedMemoryId(accessKey), *connection = createSharedMemory(sharedMemoryId);
+    int *users = (int*)malloc(sizeof(int)*10);
+    *connection = 0;
+    int count = 0, lastUser = -1;
     do{
-        if(list->size == 0) printf("There is no client yet\n");
+        if(*connection == 0) printf("Waiting for a client...\n");
         else{
-            printf("%d\n",list->head->id);
+            int pid = fork();
+            if(pid==-1) printf("Error unknown...\n");
+            else if(pid == 0){
+                *connection = 0;
+                exit(1);
+            }else{
+                if(lastUser != *connection){
+                    
+                }
+            }
         }
-        PrintList(*list);
         sleep(1);
-    }while(*clients != 908);
-    // createSemaphore(&semaphore);
-    // int a = semGetValue(&semaphore);
-    // int count = *clients;
-    // do{
-    //     if(count != *clients){
-    //         printf("A new client log in...\n");
-    //     }
-    //     if(*clients == 0){
-    //         printf("No clients...\n");
-    //     }
-    // }while(TRUE);
-    // clearSharedMemory(sharedMemoryId);
+    }while(connection >= 0);
     return 0;
 }

@@ -97,11 +97,19 @@ int createSharedMemoryId(int accessKey){
 int* createSharedMemory(int sharedMemoryId){
     int *sharedMemory;
     do{
-        sharedMemory = shmat(sharedMemoryId,NULL,0);
+        sharedMemory = shmat(sharedMemoryId,0,0);
         if(*sharedMemory == -1) printf("Error accessing\nTrying again...\n");
     }while(*sharedMemory == -1);
     return sharedMemory;
 }
 void clearSharedMemory(int sharedMemoryId){
     while(shmctl(sharedMemoryId,0,NULL) != 0);
+}
+void clientConnect(const int pid){
+    int *sharedMemory = createSharedMemory(createSharedMemoryId((key_t)ftok("Server",1234)));
+    *sharedMemory = pid;
+}
+void releaseConnection(){
+    int *sharedMemory = createSharedMemory(createSharedMemoryId((key_t)ftok("Server",1234)));
+    *sharedMemory = 0;
 }
