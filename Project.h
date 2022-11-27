@@ -18,13 +18,14 @@
 #define not !
 #define this TicketList* self
 #define READNWRITE 00004|00002
+#define clientServerConnectionKey (key_t)ftok("Server",79123)
+#define flightSharedKey (key_t)ftok("Project.h",90878)
 typedef struct Flight Flight;
 typedef struct Ticket Ticket;
 struct Ticket{
     int flightId,seatNumber,isAvailable;
     float price;
 };
-
 struct Flight{
     int id, isFull, ticketsCount;
     char destination[250];
@@ -32,40 +33,32 @@ struct Flight{
 };
 static struct Flight* createSharedMemoryFlight(void){
     void *sharedMemory = (void *)0;
-    int sharedMemoryId = shmget((key_t) 12345,sizeof(struct Flight),IPC_CREAT | 0644);
+    int sharedMemoryId = shmget(flightSharedKey,sizeof(struct Flight),IPC_CREAT | 0644);
     if (sharedMemoryId == -1) {
-        fprintf(stderr, "Error Getting information...\n");
-        fflush(stdout);
-        exit(EXIT_FAILURE);
+        printf("Error unknown...\n");
     }
-    sharedMemory = (struct Flight*) shmat(sharedMemoryId,(struct Flight*)0,0); //g
-    if(sharedMemory == (void*)-1){ //error checking of pointer
-        fprintf(stderr, "Error unknown...\n");
-        fflush(stdout);
-        exit(EXIT_FAILURE);
+    sharedMemory = (struct Flight*) shmat(sharedMemoryId,(struct Flight*)0,0);
+    if(sharedMemory == (void*)-1){
+        printf("Error unknown...\n");
     }
-    return sharedMemory; //returns object pointer
+    return sharedMemory;
 }
 static struct Flight* getSharedMemoryFlight(void){
     void *sharedMemory = (void *)0;
-    int sharedMemoryId = shmget((key_t) 12345,sizeof(struct Flight),IPC_CREAT | 0644);
+    int sharedMemoryId = shmget(flightSharedKey,sizeof(struct Flight),IPC_CREAT | 0644);
     if (sharedMemoryId == -1) {
-        fprintf(stderr, "Error Getting information...\n");
-        fflush(stdout);
-        exit(EXIT_FAILURE);
+        printf("Error unknown...\n");
     }
-    sharedMemory = (struct Flight*) shmat(sharedMemoryId,(struct Flight*)0,0); //g
-    if(sharedMemory == (void*)-1){ //error checking of pointer
-        fprintf(stderr, "Error unknown...\n");
-        fflush(stdout);
-        exit(EXIT_FAILURE);
+    sharedMemory = (struct Flight*) shmat(sharedMemoryId,(struct Flight*)0,0);
+    if(sharedMemory == (void*)-1){
+        printf("Error unknown...\n");
     }
-    return sharedMemory; //returns object pointer
+    return sharedMemory;
 }
 Flight createFlight(const int id,char destination[],const int ticketsCount,const float price){
     Flight flight;
     flight.id = id;
-    //flight.destination = destination;
+    strcpy(flight.destination, destination);
     flight.ticketsCount = ticketsCount;
     flight.isFull = FALSE;
     int i = 0;
@@ -82,7 +75,6 @@ Flight createFlight(const int id,char destination[],const int ticketsCount,const
 Flight defaultFlight(){
     Flight flight;
     flight.id = 1;
-    flight.destination;
     strcpy(flight.destination,"Cancun");
     flight.ticketsCount = 10;
     flight.isFull = FALSE;
@@ -117,42 +109,27 @@ void clearSharedMemory(int sharedMemoryId){
     while(shmctl(sharedMemoryId,0,NULL) != 0);
 }
 
-//Client info send
 int createSharedMemoryIdFlightInfo(Flight flight){
     int sharedMemoryId;
     do{
-        sharedMemoryId = shmget((key_t)ftok("Flight",90878),sizeof(Flight),READNWRITE);
+        sharedMemoryId = shmget(flightSharedKey,sizeof(Flight),READNWRITE);
         if(sharedMemoryId < 0) printf("Error sending the Flight Information\nTrying again...\n");
     }while(sharedMemoryId < 0);
     return sharedMemoryId;
 }
-
 Flight* setSharedMemory(const int flightSharedMemoryId){
     Flight* flight = (Flight*)malloc(sizeof(Flight));
     do{
         flight = (Flight*)shmat(flightSharedMemoryId,0,READNWRITE);
         if(flight == NULL or flight == (Flight*)-1){ printf("Error unknown...\nTrying again...\n"); sleep(5);}
     }while(flight == NULL or flight == (Flight*)-1);
-    char* tmp = flight->destination;
-    printf("dd\n");
-    printf("dd: %s\n",tmp);
-    printf("goli %ld\n",sizeof(flight->destination));
     return flight;
 }
-
-void TicketConnect(const int pid){
-    int *sharedMemory = createSharedMemory(createSharedMemoryId((key_t)ftok("Server",1234)));
-    *sharedMemory = pid;
-}
 void clientConnect(const int pid){
-    int *sharedMemory = createSharedMemory(createSharedMemoryId((key_t)ftok("Server",1234)));
+    int *sharedMemory = createSharedMemory(createSharedMemoryId(clientServerConnectionKey));
     *sharedMemory = pid;
 }
 void releaseConnection(){
-    int *sharedMemory = createSharedMemory(createSharedMemoryId((key_t)ftok("Server",1234)));
+    int *sharedMemory = createSharedMemory(createSharedMemoryId(clientServerConnectionKey));
     *sharedMemory = 0;
-}
-Flight* clientFlightInfo(Flight* flight){
-    Flight* tmp = setSharedMemory(createSharedMemoryIdFlightInfo(*flight));
-    return tmp;
 }
