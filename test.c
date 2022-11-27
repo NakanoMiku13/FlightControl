@@ -3,6 +3,7 @@
 #include<sys/sem.h>
 #include<stdio.h>
 #include<stdlib.h>
+#include <semaphore.h>
 #include<unistd.h>
 #define PERMISOS 0644
 
@@ -16,7 +17,11 @@ int Crea_semaforo(key_t llave,int valor_inicial)
    semctl(semid,0,SETVAL,valor_inicial);
    return semid;
 }
-
+int sema(key_t llave){
+   int semid=semget(llave,1,IPC_CREAT|PERMISOS),*t;
+   sem_getvalue(&semid,t);
+   return *t;
+}
 void down(int semid)
 {
    struct sembuf op_p[]={0,-1,0};
@@ -41,9 +46,9 @@ int main()
    {
       while(i)
       {
-         printf("Hijo con pid %d...Fuera de la region critica\n",getpid());
+         printf("Hijo con pid %d...Fuera de la region critica\nsem: %d\n",getpid(),sema(llave));
          down(semaforo);
-         printf("Hijo en la region critica %d...\n",i--);
+         printf("Hijo en la region critica %d...\nsem: %d\n",i--,sema(llave));
          sleep(i);
          up(semaforo);
       }
@@ -52,9 +57,9 @@ int main()
    {
       while(i)
       {
-         printf("Padre con pid %d...Fuera de la region critica \n",getpid());
+         printf("Padre con pid %d...Fuera de la region critica \nsem: %d\n",getpid(),sema(llave));
          down(semaforo);
-         printf("Padre en la region critica %d...\n",i--);
+         printf("Padre en la region critica %d...\nsem: %d\n",i--,sema(llave));
          sleep(i);
          up(semaforo);
       }
